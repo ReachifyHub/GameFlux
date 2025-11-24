@@ -19,9 +19,9 @@ export function IdeaEditor() {
   const [aiResult, setAiResult] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
 
-  // Replace with your actual Hugging Face model name
-  const HF_MODEL_NAME = "your-username/your-model-name"
-  const HF_API_TOKEN = process.env.NEXT_PUBLIC_HF_TOKEN || "your_huggingface_token"
+  // ✅ Safe - Only use environment variables
+  const HF_MODEL_NAME = process.env.NEXT_PUBLIC_HF_MODEL!
+  const HF_API_TOKEN = process.env.NEXT_PUBLIC_HF_TOKEN!
 
   useEffect(() => {
     const saved = localStorage.getItem('gameflux_ideas')
@@ -36,6 +36,11 @@ export function IdeaEditor() {
   }, [])
 
   const queryHuggingFace = async (prompt: string): Promise<string> => {
+    // ✅ Check if environment variables are available
+    if (!HF_API_TOKEN || !HF_MODEL_NAME) {
+      throw new Error('Hugging Face configuration missing. Please check environment variables.')
+    }
+
     try {
       const response = await fetch(
         `https://api-inference.huggingface.co/models/${HF_MODEL_NAME}`,
@@ -63,13 +68,11 @@ export function IdeaEditor() {
 
       const result = await response.json();
       
-      // Handle different response formats from Hugging Face
       if (Array.isArray(result) && result[0] && result[0].generated_text) {
         return result[0].generated_text;
       } else if (result.generated_text) {
         return result.generated_text;
       } else {
-        console.log('Raw response:', result);
         return "I couldn't generate a response. Please try again.";
       }
     } catch (error) {
@@ -85,7 +88,6 @@ export function IdeaEditor() {
     setAiResult('');
 
     try {
-      // Create a detailed prompt for game development
       const prompt = `As a game development AI assistant, analyze this game idea and provide a comprehensive prototype plan:
 
 Game Title: ${title}
@@ -94,19 +96,18 @@ Game Description: ${description}
 Please provide a structured response with:
 1. Game Concept Analysis
 2. Recommended Game Engine and Tools
-3. Development Timeline (traditional vs AI-assisted)
+3. Development Timeline
 4. Required Assets and Resources
 5. Technical Implementation Steps
-6. Monetization and Marketing Suggestions
-7. Potential Challenges and Solutions
+6. Monetization Suggestions
 
-Format the response in a clear, markdown-like structure that's easy to read.`;
+Format the response in a clear, markdown-like structure.`;
 
       const result = await queryHuggingFace(prompt);
       setAiResult(result);
     } catch (error) {
       console.error('Generation failed:', error);
-      setAiResult(`❌ Error generating response: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease check:\n1. Your Hugging Face token is valid\n2. The model is available and loaded\n3. Your internet connection`);
+      setAiResult(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease check your environment variables are set in Vercel.`);
     } finally {
       setIsGenerating(false);
     }
@@ -170,12 +171,11 @@ Format the response in a clear, markdown-like structure that's easy to read.`;
         </div>
       </div>
 
-      {/* Output Section */}
       <div className="flex-1 flex flex-col bg-card/50 overflow-hidden">
         <div className="p-6 border-b border-border">
           <h3 className="font-semibold">AI Generated Output</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Powered by your Hugging Face model
+            Powered by Hugging Face
           </p>
         </div>
 
@@ -196,7 +196,7 @@ Format the response in a clear, markdown-like structure that's easy to read.`;
               <div>
                 <div className="text-4xl mb-4">🤖</div>
                 <p>Enter your game idea and generate AI-powered analysis</p>
-                <p className="text-sm mt-2">Uses your custom Hugging Face model</p>
+                <p className="text-sm mt-2">Configured via Vercel environment variables</p>
               </div>
             </div>
           )}
@@ -204,4 +204,4 @@ Format the response in a clear, markdown-like structure that's easy to read.`;
       </div>
     </div>
   );
-    }
+}
